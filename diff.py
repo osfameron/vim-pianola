@@ -55,21 +55,15 @@ def path(text):
     return (depth, filename)
 
 def expandedfolder(name, pos, depth):
-    print("expandedfolder? '%s', %s, %s" % (name, pos, depth))
     if re.search(r'/$', name):
         (d2, t2) = path(getline(pos+1))
-        print("DEBUG '%s', %s" % (d2, t2))
         if d2 == None:
-            print("None")
             return False
         elif d2 > depth:
-            print("yay!")
             return True
         else:
-            print("boo!")
             return False
     else:
-        print("also boo!")
         return False
 
 def edit(name):
@@ -83,7 +77,7 @@ def edit(name):
         text = getcurrentline()
         pos = currentline()
         (depth, currname) = path(text)
-        print("CHECKING: pos=%s, depth=%s, currname=%s, descent=%s" % (pos, depth, currname, descent))
+        #print("CHECKING: pos=%s, depth=%s, currname=%s, descent=%s" % (pos, depth, currname, descent))
         if depth == None:
             raise Exception("End of list")
 
