@@ -142,6 +142,18 @@ class Vim:
     # edit("clojure-diff/README.md")
     # edit("test/foo/bar")
 
+def notify(sha, message):
+    call(['osascript',
+          '-e',
+          'display notification "%s" with title "%s"' % (message, sha)])
+
+def commits(head):
+    p = Popen(['git', 'rev-list', head, '--abbrev-commit', '--oneline', '--reverse'], stdout=PIPE, stderr=PIPE)
+    for line in p.stdout:
+        (sha, message) = line.decode("utf-8").rstrip().split(' ', 1)
+        notify(sha, message)
+        time.sleep(1)
+
 def diff(driver, b1, b2):
     diffs = dmp.diff_main(b1, b2)
     # dmp.diff_cleanupSemantic(diffs)
@@ -190,7 +202,9 @@ All flimsy and miserable were the shabby birds,
 
 driver = Vim()
 
-diff(driver, "", jabber1)
-diff(driver, jabber1, jabber2)
-diff(driver, jabber2, jabber1)
-diff(driver, jabber1, "")
+#diff(driver, "", jabber1)
+#diff(driver, jabber1, jabber2)
+#diff(driver, jabber2, jabber1)
+#diff(driver, jabber1, "")
+
+commits('HEAD')
