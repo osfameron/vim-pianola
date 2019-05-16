@@ -5,9 +5,6 @@ from subprocess import (Popen, call, PIPE)
 
 dmp = diff_match_patch.diff_match_patch()
 
-b1 = ""
-b2 = "hello there"
-
 def send(text):
     call(['vim', '--remote-send', text])
 
@@ -20,11 +17,20 @@ def expr(text):
     else:
         return output.decode("utf-8")
 
-def down():
-    send('<ESC>j')
+def down(lines=1):
+    if lines:
+        send('%sj' % lines)
+
+def right(count=1):
+    if count:
+        send('%s<Space>' % count)
+
+def col(pos):
+    if pos:
+        send('%s|' % pos)
 
 def type(text):
-    send('<ESC>a')
+    send('<ESC>i')
     for char in text:
         send(char)
     send('<ESC>')
@@ -104,19 +110,60 @@ def edit(name):
 # and netrw maps <CR> to something quite mad, with no command to invoke it.
 # :command! CR :call feedkeys('<ESC>:<ESC><CR>')
 # edit("clojure-diff/README.md")
-edit("test/foo/bar")
+# edit("test/foo/bar")
 
-def diff():
-    diff = dmp.diff_main(b1, b2)
+def diff(b1, b2):
+    diffs = dmp.diff_main(b1, b2)
+    dmp.diff_cleanupSemantic(diffs)
 
-    for (action, text) in diff:
-      count = len(text)
-      if action == 0:
-        time.sleep(0.05)
-      elif action == 1:
-        type(text)
-      elif action == -1:
-        pass
-      #delete(count - 1)
-      else:
-        raise Error("EEEEK!")
+    send('<ESC>:set paste<CR>')
+    send('gg')
+
+    for (action, text) in diffs:
+        print("DIFF: %s - '%s'" % (action, text))
+        # input("Press Enter to continue...")
+        lines = text.split("\n")
+        d = len(lines)-1
+        r = len(lines[-1])
+
+        if action == 0:
+            if d:
+                down(d)
+                col(r+1)
+            else:
+                right(r)
+            time.sleep(0.2)
+
+        elif action == 1:
+            type(text)
+            send('l')
+
+        elif action == -1:
+            send('<ESC>v')
+            if d:
+                down(d)
+                col(r)
+            else:
+                right(r-1)
+            time.sleep(0.5)
+            send('x')
+            time.sleep(0.1)
+        else:
+            raise Error("EEEEK!")
+
+    send('<ESC>:set nopaste<CR>')
+    send(':<CR>')
+
+jabber1 = '''Twas brillig, and the slithy toves
+      Did gyre and gimble in the wabe:
+All mimsy were the borogoves,
+      And the mome raths outgrabe.'''
+jabber2 = '''Twas four o'clock and the lithe and slimy badger-lizards
+      Turned round and made holes in the grass plot around a sundial:
+All flimsy and miserable were the shabby birds,
+      And the lost green pigs bellowed.'''
+
+diff("", jabber1)
+diff(jabber1, jabber2)
+diff(jabber2, jabber1)
+diff(jabber1, "")
