@@ -183,7 +183,7 @@ jabber1 = '''Twas brillig, and the slithy toves
       Did gyre and gimble in the wabe:
 All mimsy were the borogoves,
       And the mome raths outgrabe.'''
-jabber2 = '''Twas four o'clock and the lithe and slimy badger-lizards
+jabber2 = '''It was four o'clock and the lithe and slimy badger-lizards
       Turned round and made holes in the grass plot around a sundial:
 All flimsy and miserable were the shabby birds,
       And the lost green pigs bellowed.'''
