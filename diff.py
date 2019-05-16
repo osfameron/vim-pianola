@@ -26,7 +26,7 @@ class Vim:
         if count:
             cls.send('%s<Space>' % count)
 
-    def col(cls, pos):
+    def gotocol(cls, pos):
         if pos:
             cls.send('%s|' % pos)
 
@@ -48,6 +48,16 @@ class Vim:
 
     def currentline(cls):
         return cls.line("'.'")
+
+    def col(cls, pos):
+        ret = cls.expr("col(%s)" % pos)
+        if ret == None:
+            return None
+        else:
+            return int(ret)
+
+    def currentcol(cls):
+        return cls.col("'.'")
 
     def getline(cls, pos):
         return cls.expr("getline(%s)" % pos)
@@ -111,7 +121,7 @@ class Vim:
         cls.send('<ESC>v')
         if d:
             cls.down(d)
-            cls.col(r)
+            cls.gotocol(r)
         else:
             cls.right(r-1)
 
@@ -149,7 +159,7 @@ def diff(driver, b1, b2):
         if action == 0:
             if d:
                 driver.down(d)
-                driver.col(r+1)
+                driver.gotocol(r+1)
             else:
                 driver.right(r)
             time.sleep(0.2)
