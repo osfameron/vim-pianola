@@ -134,7 +134,8 @@ class Vim:
 
 def diff(driver, b1, b2):
     diffs = dmp.diff_main(b1, b2)
-    dmp.diff_cleanupSemantic(diffs)
+    # dmp.diff_cleanupSemantic(diffs)
+    dmp.diff_cleanupEfficiency(diffs)
 
     driver.start()
 
