@@ -2,6 +2,7 @@ import diff_match_patch
 import time
 import re
 from subprocess import (Popen, call, PIPE)
+import os
 
 dmp = diff_match_patch.diff_match_patch()
 
@@ -147,11 +148,21 @@ def notify(sha, message):
           '-e',
           'display notification "%s" with title "%s"' % (message, sha)])
 
-def commits(head):
+def notifyCommit(sha, driver):
+    fname = '%s.git' % sha
+    f = open(fname, 'w')
+    call(['git', 'log', '-n', '1', sha], stdout=f)
+    call(['vim', '--remote', fname]) # TODO driver
+    time.sleep(5)
+    driver.send(':bd<CR>')
+    f.close()
+    os.remove(fname)
+
+def commits(head, driver):
     p = Popen(['git', 'rev-list', head, '--abbrev-commit', '--oneline', '--reverse'], stdout=PIPE, stderr=PIPE)
     for line in p.stdout:
         (sha, message) = line.decode("utf-8").rstrip().split(' ', 1)
-        notify(sha, message)
+        notifyCommit(sha, driver)
         time.sleep(1)
 
 def diff(driver, b1, b2):
@@ -207,4 +218,4 @@ driver = Vim()
 #diff(driver, jabber2, jabber1)
 #diff(driver, jabber1, "")
 
-commits('HEAD')
+commits('HEAD', driver)
