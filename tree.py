@@ -3,6 +3,7 @@ from itertools import groupby
 from operator import itemgetter
 from pathlib import Path
 import pprint
+from colorama import init, Fore, Back, Style
 
 def left(bits, count=1):
     return bits[count:] + ([False] * count)
@@ -144,8 +145,6 @@ def name(item):
     name = item if isLeaf(item) else item[0]
     return name
 
-pp = pprint.PrettyPrinter(indent=4, depth=5)
-
 def navigate(tree, key):
     return next((item[1] for item in tree if name(item) == key), None)
 
@@ -155,20 +154,35 @@ def contextTree(sourceTree, targetTree, c=1):
     t = contextSearch(sourceTree, pred, c)
 
     def aux(item):
-        if pred(item):
-            if isLeaf(item):
-                return '* ' + name(item)
-            else:
-                return ('> ' + name(item) + '/',
-                        contextTree(item[1], navigate(targetTree, name(item)), c))
-        else:
-            if isLeaf(item):
-                return name(item)
-            else:
-                return name(item) + '/'
+        node = {'name': name(item),
+                'leaf': isLeaf(item),
+                'selected': pred(item)}
+
+        if node['selected'] and not node['leaf']:
+            node['children'] = contextTree(item[1],
+                                           navigate(targetTree, name(item)),
+                                           c)
+        return node
 
     return [aux(item) for item in t]
 
-pp.pprint(
-    contextTree(sourceTree, targetTree, 2))
 
+def printTree(tree):
+    def listing(item):
+        return ''.join([Style.BRIGHT if item['selected'] else '',
+                        Fore.GREEN if item['selected'] and item['leaf'] else '',
+                        item['name'],
+                        '' if item['leaf'] else '/'])
+
+    def printTreeL(tree, levels):
+        for item in tree:
+            print(listing(item))
+
+    printTreeL(tree, [0])
+
+init(autoreset=True)
+
+tree = contextTree(sourceTree, targetTree, 2)
+pp = pprint.PrettyPrinter(indent=4, depth=6)
+pp.pprint(tree)
+printTree(tree)
