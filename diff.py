@@ -1,8 +1,9 @@
-import diff_match_patch
-import time
-import re
-from subprocess import (Popen, call, PIPE)
 import os
+import re
+import time
+from subprocess import PIPE, Popen, call
+
+import diff_match_patch
 
 dmp = diff_match_patch.diff_match_patch()
 
@@ -33,8 +34,8 @@ class Vim:
 
     def type(cls, text):
         cls.send('<ESC>i')
-        for char in text:
-            cls.send(char)
+        for token in tokenize(text):
+            cls.send(token)
         cls.send('<ESC>')
 
     def cr(cls):
@@ -158,12 +159,41 @@ def notifyCommit(sha, driver):
     f.close()
     os.remove(fname)
 
-def commits(head, driver):
+def fileAtCommit(fname, sha):
+    p = Popen(['git', 'show', '%s:%s' % (sha, fname)],
+            stdout=PIPE, stderr=PIPE)
+    (output, error) = p.communicate()
+    return output.decode("utf-8")
+
+def handleCommit(driver, sha):
+    p = Popen(['git', 'diff', '%s^' % sha, sha, '--name-status'],
+            stdout=PIPE, stderr=PIPE)
+    for line in p.stdout:
+        line = line.decode("utf-8").rstrip()
+        print(line)
+        (mode, fname) = line.split("\t")
+        if mode == 'A':
+            pre = ""
+            post = fileAtCommit(fname, sha)
+            diff(driver, pre, post)
+
+        elif mode == 'M':
+            pre = fileAtCommit(fname, '%s^' % sha)
+            post = fileAtCommit(fname, sha)
+            diff(driver, pre, post)
+
+        else:
+            raise Exception(line)
+
+
+def commits(driver, head):
     p = Popen(['git', 'rev-list', head, '--abbrev-commit', '--oneline', '--reverse'], stdout=PIPE, stderr=PIPE)
     for line in p.stdout:
         (sha, message) = line.decode("utf-8").rstrip().split(' ', 1)
-        notifyCommit(sha, driver)
-        time.sleep(1)
+        # notifyCommit(sha, driver)
+        # time.sleep(1)
+        print(sha)
+        handleCommit(driver, sha)
 
 def diff(driver, b1, b2):
     diffs = dmp.diff_main(b1, b2)
@@ -218,4 +248,4 @@ driver = Vim()
 #diff(driver, jabber2, jabber1)
 #diff(driver, jabber1, "")
 
-commits('HEAD', driver)
+commits(driver, 'TIP')
