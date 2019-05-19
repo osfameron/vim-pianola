@@ -4,14 +4,14 @@ from operator import itemgetter
 from pathlib import Path
 import pprint
 
-def left(bits, level=1):
-    return bits[level:] + ([False] * level)
+def left(bits, count=1):
+    return bits[count:] + ([False] * count)
 
-def right(bits, level=1):
-    return ([False] * level) + bits[:-level]
+def right(bits, count=1):
+    return ([False] * count) + bits[:-count]
 
-def extend(bits, level):
-    ls = range(1, level+1)
+def extend(bits, count):
+    ls = range(1, count+1)
     return [any(bit)
             for bit
             in zip(*([bits]
@@ -53,17 +53,17 @@ def tree(paths, level=0):
         else:
             return (name, tree(paths, level+1))
 
-    return [ aux(name, group, level)
-             for (name, group)
-             in groupby(paths, itemgetter(level)) ]
+    return [aux(name, group, level)
+            for (name, group)
+            in groupby(paths, itemgetter(level))]
 
 def getTree(items):
     paths = [Path(item).parts for item in items]
     return tree(paths)
 
-def contextSearch(items, predicate, level=1):
+def contextSearch(items, predicate, count=1):
     bits = [predicate(item) for item in items]
-    context = zip(extend(bits, level), items)
+    context = zip(extend(bits, count), items)
 
     def aux(pair):
         (selected, group) = pair # bloody PEP3113
@@ -137,19 +137,38 @@ src/helpers/cartHelper.js""".split("\n")
 sourceTree = getTree(items)
 targetTree = getTree(modified)
 
+def isLeaf(item):
+    return type(item) == str
+
 def name(item):
-    return item if type(item) == str else item[0]
+    name = item if isLeaf(item) else item[0]
+    return name
 
+pp = pprint.PrettyPrinter(indent=4, depth=5)
 
-pp = pprint.PrettyPrinter(indent=4, depth=4)
+def navigate(tree, key):
+    return next((item[1] for item in tree if name(item) == key), None)
 
-def contextTree(sourceTree, targetTree, level=1):
-
+def contextTree(sourceTree, targetTree, c=1):
     pred = lambda item: name(item) in [name(target) for target in targetTree]
 
-    t = contextSearch(sourceTree, pred, level)
-    return t
+    t = contextSearch(sourceTree, pred, c)
+
+    def aux(item):
+        if pred(item):
+            if isLeaf(item):
+                return '* ' + name(item)
+            else:
+                return ('> ' + name(item) + '/',
+                        contextTree(item[1], navigate(targetTree, name(item)), c))
+        else:
+            if isLeaf(item):
+                return name(item)
+            else:
+                return name(item) + '/'
+
+    return [aux(item) for item in t]
 
 pp.pprint(
-    contextTree(sourceTree, targetTree, 1))
+    contextTree(sourceTree, targetTree, 2))
 
