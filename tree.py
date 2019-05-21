@@ -26,39 +26,36 @@ def flatten(parts):
 
 def tree(paths, level=0):
     """
-    Given a list of paths, return a tree like:
-
-        ['file1',
-         'file2',
-         ('foo', ['file1', 'file2', 'file3'])
-         ('bar', ['file1',
-                  ('baz': ['file1'])])]
-
-    e.g. a node is either:
-
-        * a file: string)
-        * a directory: a tuple of (name, [list of nodes])
+    Given a list of paths, return a tree with nodes like:
+        {'leaf': False, 'name': '...', 'selected': False, 'children': ...}
     """
 
-    def aux(name, group, level):
+    def node(name, group, level):
         """
         e.g. if we're at level 2 and we have a single path
 
            [('foo', 'bar', 'baz.txt')]
 
-        then we want to return 'baz.txt'
+        then we want to return a leaf node, otherwise a path with children.
         """
 
         (path, *rest) = paths = list(group)
         if not rest and len(path) == level + 1:
-        #if (len(path), len(rest)) == (level + 1, 0):
-            return path[-1]
+            return {'leaf': True,
+                    'selected': False,
+                    'name': name}
         else:
-            return (name, tree(paths, level+1))
+            return {'leaf': False,
+                    'selected': False,
+                    'name': name,
+                    'children': tree(paths, level+1)}
 
-    return [aux(name, group, level)
-            for (name, group)
-            in groupby(paths, itemgetter(level))]
+    branch = [node(name, group, level)
+              for (name, group)
+              in groupby(paths, itemgetter(level))]
+
+    branch[-1]['last'] = True  
+    return branch
 
 def getTree(items):
     paths = [Path(item).parts for item in items]
@@ -68,9 +65,10 @@ def contextSearch(items, predicate, count=1):
     bits = [predicate(item) for item in items]
     context = zip(extend(bits, count), items)
 
+    ellipsis = {'name':"...", 'leaf':True, 'selected':False}
     def aux(pair):
         (selected, group) = pair # bloody PEP3113
-        return [item for (_, item) in group] if selected else ["..."]
+        return [item for (_, item) in group] if selected else [ellipsis]
 
     return flatten(
         [aux(pair) for pair in groupby(context, itemgetter(0))])
@@ -140,34 +138,30 @@ src/helpers/cartHelper.js""".split("\n")
 sourceTree = getTree(items)
 targetTree = getTree(modified)
 
-def isLeaf(item):
-    return type(item) == str
-
-def name(item):
-    name = item if isLeaf(item) else item[0]
-    return name
-
 def navigate(tree, key):
-    return next((item[1] for item in tree if name(item) == key), None)
+    return next((item['children'] for item in tree if item['name'] == key), None)
 
 def contextTree(sourceTree, targetTree, c=1):
-    pred = lambda item: name(item) in [name(target) for target in targetTree]
+    pred = lambda node: node['name'] in [target['name'] for target in targetTree]
 
     t = contextSearch(sourceTree, pred, c)
 
-    def aux(item):
-        node = {'name': name(item),
-                'leaf': isLeaf(item),
-                'selected': pred(item)}
+    def aux(node):
+        node['selected'] = pred(node)
 
-        if node['selected'] and not node['leaf']:
-            node['children'] = contextTree(item[1],
-                                           navigate(targetTree, name(item)),
-                                           c)
+        if not node['leaf']:
+            if node['selected']:
+                node['children'] = contextTree(
+                                       node['children'],
+                                       navigate(targetTree, node['name']),
+                                       c)
+            else:
+                del node['children'] 
+
         return node
 
     branch = [aux(item) for item in t]
-    branch[-1]['last'] = True  
+    branch[-1]['last'] = True
     return branch
 
 def printTree(tree):
@@ -178,7 +172,7 @@ def printTree(tree):
                         '' if item['leaf'] else '/'])
 
     def printAtIndent(indent, text):
-        print('   ' * indent, end='')
+        print('    ' * indent, end='')
         print('%-4s' % text, end='')
 
     def printRoot(root):
@@ -204,9 +198,9 @@ def printTree(tree):
 
 init(autoreset=True)
 
+printTree(sourceTree)
+print()
 tree = contextTree(sourceTree, targetTree, 1)
 pp = pprint.PrettyPrinter(indent=4, depth=6)
-pp.pprint(tree)
-print("-----")
 printTree(tree)
 
