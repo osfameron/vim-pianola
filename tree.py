@@ -1,5 +1,6 @@
 import re
 from itertools import groupby
+from functools import reduce
 from operator import itemgetter
 from pathlib import Path
 import pprint
@@ -50,6 +51,7 @@ def tree(paths, level=0):
 
         (path, *rest) = paths = list(group)
         if not rest and len(path) == level + 1:
+        #if (len(path), len(rest)) == (level + 1, 0):
             return path[-1]
         else:
             return (name, tree(paths, level+1))
@@ -133,6 +135,7 @@ src/tests/helpers/menuHelper.test.js""".split("\n")
 
 
 modified = """src/components/App.js
+src/tests/components/Cart/__snapshots__/CartItem.test.js.snap
 src/helpers/cartHelper.js""".split("\n")
 
 sourceTree = getTree(items)
@@ -164,25 +167,48 @@ def contextTree(sourceTree, targetTree, c=1):
                                            c)
         return node
 
-    return [aux(item) for item in t]
-
+    branch = [aux(item) for item in t]
+    branch[0]['first'] = True  
+    branch[-1]['last'] = True  
+    return branch
 
 def printTree(tree):
-    def listing(item):
+    def nodeName(item):
         return ''.join([Style.BRIGHT if item['selected'] else '',
                         Fore.GREEN if item['selected'] and item['leaf'] else '',
                         item['name'],
                         '' if item['leaf'] else '/'])
 
-    def printTreeL(tree, levels):
-        for item in tree:
-            print(listing(item))
+    def printAtIndent(indent, text):
+        print('   ' * indent, end='')
+        print('%-3s' % text, end='')
 
-    printTreeL(tree, [0])
+    def printRoot(root):
+        for indent in root:
+            printAtIndent(indent, '│')
+
+    def printTreeL(branches, subtree):
+        (root, branch) = (branches[:-1], branches[-1])
+        for item in subtree:
+            printRoot(root)
+            if 'last' in item:
+                printAtIndent(branch, '└──')
+                print(item['name'])
+                if 'children' in item:
+                    printTreeL(root + [branch + 1], item['children'])
+            else:
+                printAtIndent(branch, '├──')
+                print(item['name'])
+                if 'children' in item:
+                    printTreeL(root + [branch, 0], item['children'])
+
+    printTreeL([0], tree)
 
 init(autoreset=True)
 
-tree = contextTree(sourceTree, targetTree, 2)
+tree = contextTree(sourceTree, targetTree, 1)
 pp = pprint.PrettyPrinter(indent=4, depth=6)
 pp.pprint(tree)
+print("-----")
 printTree(tree)
+
