@@ -27,7 +27,7 @@ def flatten(parts):
 def tree(paths, level=0):
     """
     Given a list of paths, return a tree with nodes like:
-        {'leaf': False, 'name': '...', 'selected': False, 'children': ...}
+        {'leaf': False, 'name': '...', 'children': ...}
     """
 
     def node(name, group, level):
@@ -42,11 +42,9 @@ def tree(paths, level=0):
         (path, *rest) = paths = list(group)
         if not rest and len(path) == level + 1:
             return {'leaf': True,
-                    'selected': False,
                     'name': name}
         else:
             return {'leaf': False,
-                    'selected': False,
                     'name': name,
                     'children': tree(paths, level+1)}
 
@@ -164,10 +162,13 @@ def contextTree(sourceTree, targetTree, c=1):
     branch[-1]['last'] = True
     return branch
 
+def selected(node):
+    return node.get('selected', False)
+
 def printTree(tree):
     def nodeName(item):
-        return ''.join([Style.BRIGHT if item['selected'] else '',
-                        Fore.GREEN if item['selected'] and item['leaf'] else '',
+        return ''.join([Style.BRIGHT if selected(item) else '',
+                        Fore.GREEN if selected(item) and item['leaf'] else '',
                         item['name'],
                         '' if item['leaf'] else '/'])
 
