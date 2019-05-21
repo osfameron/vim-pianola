@@ -135,7 +135,6 @@ src/tests/helpers/menuHelper.test.js""".split("\n")
 
 
 modified = """src/components/App.js
-src/tests/components/Cart/__snapshots__/CartItem.test.js.snap
 src/helpers/cartHelper.js""".split("\n")
 
 sourceTree = getTree(items)
@@ -168,7 +167,6 @@ def contextTree(sourceTree, targetTree, c=1):
         return node
 
     branch = [aux(item) for item in t]
-    branch[0]['first'] = True  
     branch[-1]['last'] = True  
     return branch
 
@@ -181,7 +179,7 @@ def printTree(tree):
 
     def printAtIndent(indent, text):
         print('   ' * indent, end='')
-        print('%-3s' % text, end='')
+        print('%-4s' % text, end='')
 
     def printRoot(root):
         for indent in root:
@@ -193,12 +191,12 @@ def printTree(tree):
             printRoot(root)
             if 'last' in item:
                 printAtIndent(branch, '└──')
-                print(item['name'])
+                print(nodeName(item))
                 if 'children' in item:
                     printTreeL(root + [branch + 1], item['children'])
             else:
                 printAtIndent(branch, '├──')
-                print(item['name'])
+                print(nodeName(item))
                 if 'children' in item:
                     printTreeL(root + [branch, 0], item['children'])
 
