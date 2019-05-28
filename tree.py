@@ -6,19 +6,31 @@ from pathlib import Path
 import pprint
 from colorama import init, Fore, Back, Style
 
-def left(bits, count=1):
-    return bits[count:] + ([False] * count)
-
-def right(bits, count=1):
-    return ([False] * count) + bits[:-count]
-
 def extend(bits, count):
-    ls = range(1, count+1)
-    return [any(bit)
-            for bit
+    """
+    Given a bitmask, extend the True areas by `count` places.
+    e.g.
+
+    [True, False, True, False, False]
+            =>
+    [True, True, True, True, False] extended by 1
+    [True, True, True, True, True] extended by 2
+    """
+    def left(bits, count=1):
+        """ shift bitmask left """
+        return bits[count:] + ([False] * count)
+
+    def right(bits, count=1):
+        """ shift bitmask right """
+        return ([False] * count) + bits[:-count]
+
+    cs = range(1, count+1)
+
+    return [any(pos)
+            for pos
             in zip(*([bits]
-                   + [left(bits, l) for l in ls]
-                   + [right(bits, l) for l in ls]))]
+                   + [left(bits, c) for c in cs]
+                   + [right(bits, c) for c in cs]))]
 
 def flatten(parts):
     return sum(parts, [])
