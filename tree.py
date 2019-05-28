@@ -6,6 +6,8 @@ from pathlib import Path
 import pprint
 from colorama import init, Fore, Back, Style
 
+head = itemgetter(0)
+
 def extend(bits, count):
     """
     Given a bitmask, extend the True areas by `count` places.
@@ -54,8 +56,7 @@ def tree(paths):
 
         (path, *_) = paths = list(group)
         if len(paths) == 1 and len(path) == 1:
-            return {'leaf': True,
-                    'name': name}
+            return path[0]
         else:
             return {'leaf': False,
                     'name': name,
@@ -63,14 +64,24 @@ def tree(paths):
 
     branch = [node(name, group)
               for (name, group)
-              in groupby(paths, itemgetter(0))]
+              in groupby(paths, head)]
 
     branch[-1]['last'] = True  
     return branch
 
-def getTree(items):
-    paths = [Path(item).parts for item in items]
-    return tree(paths)
+def getTree(paths, fn):
+    """
+    Given a list of string paths, return a tree with all routes through
+    """
+    def pathToList(path):
+        node = fn(path)
+        pathList = list(Path(node['path']).parts)
+        pathList[-1] = {"name": pathList[-1],
+                        "leaf": True,
+                        **node}
+        return pathList
+
+    return tree([pathToList(path) for path in paths])
 
 def contextSearch(items, predicate, count=1):
     bits = [predicate(item) for item in items]
@@ -82,7 +93,7 @@ def contextSearch(items, predicate, count=1):
         return [item for (_, item) in group] if selected else [ellipsis]
 
     return flatten(
-        [aux(pair) for pair in groupby(context, itemgetter(0))])
+        [aux(pair) for pair in groupby(context, head)])
 
 
 items=""".gitignore
@@ -143,14 +154,42 @@ src/tests/helpers/cartHelper.test.js
 src/tests/helpers/menuHelper.test.js""".split("\n")
 
 
-modified = """src/components/App.js
-src/helpers/cartHelper.js""".split("\n")
+modified = """A src/components/App.js
+M src/helpers/cartHelper.js""".split("\n")
 
-sourceTree = getTree(items)
-targetTree = getTree(modified)
+def pathOnly(line):
+    return {"path": line}
+
+def pathStatus(line):
+    (mode, path) = line.split(' ', 1)
+    return {"path": path,
+            "mode": mode}
 
 def navigate(tree, key):
     return next((item['children'] for item in tree if item['name'] == key), None)
+
+def mergeTree(fs, ts):
+    if not ts:
+        return fs
+    elif not fs:
+        return ts
+
+    ((f,*fs2), (t,*ts2)) = (fs, ts)
+    if f['name'] == t['name']:
+        if t['leaf']:
+            return [t] + mergeTree(fs2, ts2)
+        else:
+            return [{**t, 'children': mergeTree(f['children'], t['children'])}] \
+                   + mergeTree(fs2, ts2)
+    elif f['name'] > t['name']:
+        return [t] + mergeTree(fs, ts2)
+    elif t['name'] > f['name']:
+        return [f] + mergeTree(fs2, ts)
+    else:
+        raise Exception('eeek')
+
+targetTree = getTree(modified, pathStatus)
+sourceTree = getTree(items, pathOnly)
 
 def contextTree(sourceTree, targetTree, c=1):
     pred = lambda node: node['name'] in [target['name'] for target in targetTree]
@@ -181,7 +220,9 @@ def selected(node):
 def printTree(tree):
     def nodeName(item):
         return ''.join([Style.BRIGHT if selected(item) else '',
-                        Fore.GREEN if selected(item) and item['leaf'] else '',
+                        Fore.GREEN if 'mode' in item and item['mode'] == 'A' else '',
+                        Fore.BLUE if 'mode' in item and item['mode'] == 'M' else '',
+                        # Fore.GREEN if selected(item) and item['leaf'] else '',
                         item['name'],
                         '' if item['leaf'] else '/'])
 
@@ -213,7 +254,7 @@ def printTree(tree):
 init(autoreset=True)
 
 print()
-tree = contextTree(sourceTree, targetTree, 2)
+tree = contextTree(mergeTree(sourceTree, targetTree), targetTree, 2)
 pp = pprint.PrettyPrinter(indent=4, depth=6)
 printTree(tree)
 
