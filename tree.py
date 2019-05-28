@@ -24,33 +24,34 @@ def flatten(parts):
     return sum(parts, [])
     # return list(itertools.chain.from_iterable(parts)) # seriously?
 
-def tree(paths, level=0):
+def tree(paths):
     """
     Given a list of paths, return a tree with nodes like:
         {'leaf': False, 'name': '...', 'children': ...}
     """
 
-    def node(name, group, level):
+    def node(name, group):
         """
-        e.g. if we're at level 2 and we have a single path
+        e.g. if we're a single node path:
 
-           [('foo', 'bar', 'baz.txt')]
+           [('baz.txt')]
 
-        then we want to return a leaf node, otherwise a path with children.
+        then we want to return a leaf node with that path, otherwise a path
+        with children.
         """
 
-        (path, *rest) = paths = list(group)
-        if not rest and len(path) == level + 1:
+        (path, *_) = paths = list(group)
+        if len(paths) == 1 and len(path) == 1:
             return {'leaf': True,
                     'name': name}
         else:
             return {'leaf': False,
                     'name': name,
-                    'children': tree(paths, level+1)}
+                    'children': tree([tail for [_, *tail] in paths])}
 
-    branch = [node(name, group, level)
+    branch = [node(name, group)
               for (name, group)
-              in groupby(paths, itemgetter(level))]
+              in groupby(paths, itemgetter(0))]
 
     branch[-1]['last'] = True  
     return branch
@@ -199,9 +200,8 @@ def printTree(tree):
 
 init(autoreset=True)
 
-printTree(sourceTree)
 print()
-tree = contextTree(sourceTree, targetTree, 1)
+tree = contextTree(sourceTree, targetTree, 2)
 pp = pprint.PrettyPrinter(indent=4, depth=6)
 printTree(tree)
 
