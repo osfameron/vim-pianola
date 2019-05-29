@@ -154,6 +154,7 @@ src/tests/helpers/menuHelper.test.js""".split("\n")
 
 
 modified = """A src/components/App.js
+D src/helpers/aaaaHelper.js
 M src/helpers/cartHelper.js""".split("\n")
 
 def pathOnly(line):
@@ -217,11 +218,25 @@ def selected(node):
     return node.get('selected', False)
 
 def printTree(tree):
+
+    def colour(item):
+        if 'mode' in item:
+            return {'A': Fore.GREEN,
+                    'M': Fore.BLUE,
+                    'D': Fore.RED}.get(item['mode'], '')
+        else:
+            return ''
+
+    def mode(item):
+        if 'mode' in item:
+            return '%s ' % item['mode']
+        else:
+            return ''
+
     def nodeName(item):
         return ''.join([Style.BRIGHT if selected(item) else '',
-                        Fore.GREEN if 'mode' in item and item['mode'] == 'A' else '',
-                        Fore.BLUE if 'mode' in item and item['mode'] == 'M' else '',
-                        # Fore.GREEN if selected(item) and item['leaf'] else '',
+                        colour(item),
+                        mode(item),
                         item['name'],
                         '' if item['leaf'] else '/'])
 
