@@ -66,7 +66,6 @@ def tree(paths):
               for (name, group)
               in groupby(paths, head)]
 
-    branch[-1]['last'] = True  
     return branch
 
 def getTree(paths, fn):
