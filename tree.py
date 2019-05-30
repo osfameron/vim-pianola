@@ -1,10 +1,21 @@
+#!/usr/bin/env python
+"""git-context-tree
+
+Usage:
+    git-context-tree [-c <count>] <commit>
+
+Options:
+    -c <count>,--context=<count>  Surrounding context [default: 1]
+"""
+
 import re
+from docopt import docopt
 from itertools import groupby
 from functools import reduce
 from operator import itemgetter
 from pathlib import Path
-import pprint
 from colorama import init, Fore, Back, Style
+from subprocess import PIPE, Popen
 
 head = itemgetter(0)
 
@@ -89,79 +100,17 @@ def contextSearch(items, predicate, count=1):
     ellipsis = {'name':"...", 'leaf':True, 'selected':False}
     def aux(pair):
         (selected, group) = pair # bloody PEP3113
-        return [item for (_, item) in group] if selected else [ellipsis]
+        return [item for (_, item) in group] if selected else [{**ellipsis}]
 
     return flatten(
         [aux(pair) for pair in groupby(context, head)])
 
 
-items=""".gitignore
-README.md
-_config.yml
-docs/README.md
-docs/_config.yml
-docs/resources/app_preview.png
-docs/resources/cart_item_preview.png
-docs/resources/cart_preview.png
-docs/resources/cart_totals_preview.png
-docs/resources/menu_header_preview.png
-docs/resources/menu_item_preview.png
-docs/resources/menu_preview.png
-docs/resources/menu_section_closed_preview.png
-docs/resources/menu_section_open_preview.png
-package.json
-public/index.html
-src/assets/data.json
-src/assets/styles.css
-src/components/App.js
-src/components/Cart/CartItem.js
-src/components/Cart/CartTotals.js
-src/components/Cart/index.js
-src/components/Menu/MenuHeader.js
-src/components/Menu/MenuItem.js
-src/components/Menu/MenuSection.js
-src/components/Menu/index.js
-src/helpers/cartHelper.js
-src/helpers/menuHelper.js
-src/index.js
-src/setupTests.js
-src/templates/cart/cart.html
-src/templates/cart/cartItem.html
-src/templates/cart/cartTotals.html
-src/templates/index.html
-src/templates/menu/menu.html
-src/templates/menu/menuHeader.html
-src/templates/menu/menuItem.html
-src/templates/menu/menuSection.html
-src/tests/components/Cart/CartItem.test.js
-src/tests/components/Cart/CartTotals.test.js
-src/tests/components/Cart/__snapshots__/CartItem.test.js.snap
-src/tests/components/Cart/__snapshots__/CartTotals.test.js.snap
-src/tests/components/Cart/__snapshots__/index.test.js.snap
-src/tests/components/Cart/index.test.js
-src/tests/components/Menu/MenuHeader.test.js
-src/tests/components/Menu/MenuItem.test.js
-src/tests/components/Menu/MenuSection.test.js
-src/tests/components/Menu/__snapshots__/MenuHeader.test.js.snap
-src/tests/components/Menu/__snapshots__/MenuItem.test.js.snap
-src/tests/components/Menu/__snapshots__/MenuSection.test.js.snap
-src/tests/components/Menu/__snapshots__/index.test.js.snap
-src/tests/components/Menu/index.test.js
-src/tests/containers/App.test.js
-src/tests/data/mockData.json
-src/tests/helpers/cartHelper.test.js
-src/tests/helpers/menuHelper.test.js""".split("\n")
-
-
-modified = """A src/components/App.js
-D src/helpers/aaaaHelper.js
-M src/helpers/cartHelper.js""".split("\n")
-
 def pathOnly(line):
     return {"path": line}
 
 def pathStatus(line):
-    (mode, path) = line.split(' ', 1)
+    (mode, path) = re.split('\s', line, maxsplit=1)
     return {"path": path,
             "mode": mode}
 
@@ -187,9 +136,6 @@ def mergeTree(fs, ts):
         return [f] + mergeTree(fs2, ts)
     else:
         raise Exception('eeek')
-
-targetTree = getTree(modified, pathStatus)
-sourceTree = getTree(items, pathOnly)
 
 def contextTree(sourceTree, targetTree, c=1):
     pred = lambda node: node['name'] in [target['name'] for target in targetTree]
@@ -265,10 +211,30 @@ def printTree(tree):
 
     printTreeL([0], tree)
 
-init(autoreset=True)
+def sourceFiles(commit):
+    p = Popen(['git', 'ls-tree', '-r', '--name-only', commit], stdout=PIPE, stderr=PIPE)
+    (output, error) = p.communicate()
+    return output.decode('utf-8').rstrip().split('\n')
 
-print()
-tree = contextTree(mergeTree(sourceTree, targetTree), targetTree, 2)
-pp = pprint.PrettyPrinter(indent=4, depth=6)
-printTree(tree)
+def targetFiles(commit):
+    p = Popen(['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', commit], stdout=PIPE, stderr=PIPE)
+    (output, error) = p.communicate()
+    return output.decode('utf-8').rstrip().split('\n')
+
+if __name__ == '__main__':
+    arguments = docopt(__doc__, version='git context-tree 0.1')
+
+    commit = arguments['<commit>']
+    context = int(arguments['--context'])
+
+    source = sourceFiles(commit)
+    target = targetFiles(commit)
+
+    sourceTree = getTree(source, pathOnly)
+    targetTree = getTree(target, pathStatus)
+
+    tree = contextTree(mergeTree(sourceTree, targetTree), targetTree, context)
+
+    init(autoreset=True)
+    printTree(tree)
 
