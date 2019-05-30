@@ -17,8 +17,6 @@ from pathlib import Path
 from colorama import init, Fore, Back, Style
 from subprocess import PIPE, Popen
 
-head = itemgetter(0)
-
 def extend(bits, count):
     """
     Given a bitmask, extend the True areas by `count` places.
@@ -46,8 +44,11 @@ def extend(bits, count):
                    + [right(bits, c) for c in cs]))]
 
 def flatten(parts):
+    """Flatten a list of lists by one level"""
     return sum(parts, [])
     # return list(itertools.chain.from_iterable(parts)) # seriously?
+
+head = itemgetter(0)
 
 def tree(paths):
     """
@@ -97,10 +98,16 @@ def contextSearch(items, predicate, count=1):
     bits = [predicate(item) for item in items]
     context = zip(extend(bits, count), items)
 
-    ellipsis = {'name':"...", 'leaf':True, 'selected':False}
+    def ellipsis():
+        """show a ... line for elided items, if context requested"""
+        if count:
+            return [{'name':"...", 'leaf':True, 'selected':False}]
+        else:
+            return []
+
     def aux(pair):
         (selected, group) = pair # bloody PEP3113
-        return [item for (_, item) in group] if selected else [{**ellipsis}]
+        return [item for (_, item) in group] if selected else ellipsis()
 
     return flatten(
         [aux(pair) for pair in groupby(context, head)])
@@ -209,17 +216,26 @@ def printTree(tree):
                 if 'children' in item:
                     printTreeL(root + [branch, 0], item['children'])
 
+    init(autoreset=True)
     printTreeL([0], tree)
 
-def sourceFiles(commit):
-    p = Popen(['git', 'ls-tree', '-r', '--name-only', commit], stdout=PIPE, stderr=PIPE)
+def run(command):
+    p = Popen(command, stdout=PIPE, stderr=PIPE)
     (output, error) = p.communicate()
     return output.decode('utf-8').rstrip().split('\n')
 
+def sourceFiles(commit):
+    return run(['git', 'ls-tree',
+                       '-r',
+                       '--name-only',
+                       commit])
+
 def targetFiles(commit):
-    p = Popen(['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', commit], stdout=PIPE, stderr=PIPE)
-    (output, error) = p.communicate()
-    return output.decode('utf-8').rstrip().split('\n')
+    return run(['git', 'diff-tree',
+                       '--no-commit-id',
+                       '--name-status',
+                       '-r',
+                       commit])
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='git context-tree 0.1')
@@ -235,6 +251,5 @@ if __name__ == '__main__':
 
     tree = contextTree(mergeTree(sourceTree, targetTree), targetTree, context)
 
-    init(autoreset=True)
     printTree(tree)
 
